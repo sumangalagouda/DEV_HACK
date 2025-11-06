@@ -124,32 +124,44 @@ serve(async (req) => {
       .from('detection-images')
       .getPublicUrl(fileName);
 
-    // Save detection to database
-    const { data: detectionData, error: dbError } = await supabase
-      .from('detections')
-      .insert({
-        camera_id: cameraId,
-        violation_type: analysisResult.violations.join(', '),
-        confidence: Math.round((analysisResult.confidence || 0.75) * 100),
-        image_url: publicUrl,
-        severity: analysisResult.severity || 'medium',
-        status: 'new'
-      })
-      .select()
-      .single();
+    // Only save to database if there are actual violations
+    const hasViolations = analysisResult.violations && analysisResult.violations.length > 0;
 
-    if (dbError) {
-      console.error('Database error:', dbError);
-      throw dbError;
+    let detectionData = null;
+    if (hasViolations) {
+      const { data, error: dbError } = await supabase
+        .from('detections')
+        .insert({
+          camera_id: cameraId,
+          violation_type: analysisResult.violations.join(', '),
+          confidence: Math.round((analysisResult.confidence || 0.75) * 100),
+          image_url: publicUrl,
+          severity: analysisResult.severity || 'medium',
+          status: 'new'
+        })
+        .select()
+        .single();
+
+      if (dbError) {
+        console.error('Database error:', dbError);
+        throw dbError;
+      }
+
+      detectionData = data;
+      console.log('Violation detected and saved:', detectionData);
+    } else {
+      console.log('No violations detected - image is compliant');
     }
-
-    console.log('Detection saved:', detectionData);
 
     return new Response(
       JSON.stringify({
         success: true,
+        hasViolations,
         detection: detectionData,
-        analysis: analysisResult
+        analysis: analysisResult,
+        message: hasViolations 
+          ? 'Safety violation detected!' 
+          : 'No violations detected - all safety protocols followed'
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

@@ -73,19 +73,29 @@ const CameraFeed = ({ onDetectionComplete }: CameraFeedProps) => {
 
       if (error) throw error;
 
-      // Play voice alert
-      const violations = data.detection.violation_type;
-      const utterance = new SpeechSynthesisUtterance(
-        `Alert! Safety violation detected: ${violations}. Please address immediately.`
-      );
-      utterance.rate = 0.9;
-      window.speechSynthesis.speak(utterance);
+      // Check if violations were found
+      if (data.hasViolations) {
+        // Play voice alert for violations
+        const violations = data.detection.violation_type;
+        const utterance = new SpeechSynthesisUtterance(
+          `Alert! Safety violation detected: ${violations}. Please address immediately.`
+        );
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
 
-      toast({
-        title: "Violation Detected!",
-        description: violations,
-        variant: "destructive",
-      });
+        toast({
+          title: "Violation Detected!",
+          description: violations,
+          variant: "destructive",
+        });
+      } else {
+        // No violations found
+        toast({
+          title: "All Clear!",
+          description: "No safety violations detected. All PPE requirements met.",
+          className: "bg-success text-success-foreground",
+        });
+      }
 
       onDetectionComplete();
       setPreviewImage(null);

@@ -73,6 +73,7 @@ const Dashboard = () => {
             location
           )
         `)
+        .neq('violation_type', '') // Only fetch detections with actual violations
         .order('detected_at', { ascending: false })
         .limit(10);
       
@@ -91,6 +92,7 @@ const Dashboard = () => {
       const { data, error } = await supabase
         .from('detections')
         .select('*')
+        .neq('violation_type', '') // Only count actual violations
         .gte('detected_at', today.toISOString());
       
       if (error) throw error;
