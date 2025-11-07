@@ -4,10 +4,23 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Shield, HardHat } from "lucide-react";
+
+const BrandLogo = () => (
+  <svg width="56" height="56" viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-3">
+    <circle cx="27" cy="27" r="26" fill="url(#paint0_radial)" stroke="hsl(var(--primary))" strokeWidth="2" />
+    <path d="M27 39c5-4 9-7 9-13a9 9 0 10-18 0c0 6 4 9 9 13Z" fill="hsl(var(--primary))" stroke="hsl(var(--secondary))" strokeWidth="1.8"/>
+    <circle cx="27" cy="26" r="4.2" fill="hsl(var(--secondary))" stroke="white" strokeWidth="1.5"/>
+    <defs>
+      <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientTransform="rotate(65 5 40) scale(31 38)" gradientUnits="userSpaceOnUse">
+        <stop stopColor="#f5dfff" />
+        <stop offset="1" stopColor="#ebe6ff" />
+      </radialGradient>
+    </defs>
+  </svg>
+);
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -18,7 +31,6 @@ const Auth = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check if user is already logged in
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         navigate("/dashboard");
@@ -29,21 +41,16 @@ const Auth = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            full_name: fullName,
-          },
+          data: { full_name: fullName },
           emailRedirectTo: `${window.location.origin}/dashboard`,
         },
       });
-
       if (error) throw error;
-
       toast({
         title: "Account created!",
         description: "You can now sign in with your credentials.",
@@ -62,15 +69,9 @@ const Auth = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) throw error;
-
       navigate("/dashboard");
     } catch (error: any) {
       toast({
@@ -84,106 +85,64 @@ const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <div className="p-3 bg-primary rounded-xl">
-              <Shield className="h-8 w-8 text-primary-foreground" />
-            </div>
-            <HardHat className="h-10 w-10 text-accent" />
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/25 to-secondary/10 p-4 relative overflow-hidden">
+      {/* Soft abstract background SVG */}
+      <svg className="absolute left-[-20%] top-[-20%] w-[60vw] h-[60vw] blur-3xl opacity-30" viewBox="0 0 700 700">
+        <circle cx="350" cy="350" r="340" fill="url(#linGrad)" />
+        <defs>
+          <linearGradient id="linGrad" x1="0" y1="0" x2="700" y2="700" gradientUnits="userSpaceOnUse">
+            <stop stopColor="#c2a0fa" />
+            <stop offset="1" stopColor="#2cf2ef" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="w-full max-w-lg z-10">
+        <Card className="bg-white/75 backdrop-blur-lg border-0 shadow-2xl rounded-3xl px-6 py-12">
+          <div className="text-center mb-10">
+            <BrandLogo />
+            <h1 className="font-brand-heading text-4xl font-bold text-primary mb-1">VigilantAI</h1>
+            <div className="text-base text-muted-foreground pb-1">Welcome back! Please sign in or create your site account.</div>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">
-            Construction Safety AI
-          </h1>
-          <p className="text-slate-400">
-            Intelligent PPE Detection & Risk Monitoring
-          </p>
-        </div>
-
-        <Card className="backdrop-blur-lg bg-card/90 border-border">
-          <CardHeader>
-            <CardTitle>Access Control</CardTitle>
-            <CardDescription>Sign in or create an account</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="signin">
-                <form onSubmit={handleSignIn} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="supervisor@construction.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Signing in..." : "Sign In"}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              <TabsContent value="signup">
-                <form onSubmit={handleSignUp} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <Input
-                      id="fullName"
-                      type="text"
-                      placeholder="John Doe"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-email">Email</Label>
-                    <Input
-                      id="signup-email"
-                      type="email"
-                      placeholder="supervisor@construction.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="signup-password">Password</Label>
-                    <Input
-                      id="signup-password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Creating account..." : "Create Account"}
-                  </Button>
-                </form>
-              </TabsContent>
-            </Tabs>
-          </CardContent>
+          <Tabs defaultValue="signin" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6 bg-secondary/10 rounded-xl">
+              <TabsTrigger value="signin" className="rounded-xl">Sign In</TabsTrigger>
+              <TabsTrigger value="signup" className="rounded-xl">Sign Up</TabsTrigger>
+            </TabsList>
+            <TabsContent value="signin">
+              <form onSubmit={handleSignIn} className="space-y-6">
+                <div className="space-y-2 text-left">
+                  <Label htmlFor="email">Email</Label>
+                  <Input id="email" type="email" placeholder="me@site.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="rounded-lg px-4 py-3 text-lg" />
+                </div>
+                <div className="space-y-2 text-left">
+                  <Label htmlFor="password">Password</Label>
+                  <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="rounded-lg px-4 py-3 text-lg" />
+                </div>
+                <Button type="submit" className="w-full text-lg font-brand-heading rounded-full h-14 mt-2 shadow-lg" disabled={loading}>
+                  {loading ? "Signing in..." : "Sign In"}
+                </Button>
+              </form>
+            </TabsContent>
+            <TabsContent value="signup">
+              <form onSubmit={handleSignUp} className="space-y-6">
+                <div className="space-y-2 text-left">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <Input id="fullName" type="text" placeholder="Jane Smith" value={fullName} onChange={(e) => setFullName(e.target.value)} required className="rounded-lg px-4 py-3 text-lg" />
+                </div>
+                <div className="space-y-2 text-left">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <Input id="signup-email" type="email" placeholder="me@site.com" value={email} onChange={(e) => setEmail(e.target.value)} required className="rounded-lg px-4 py-3 text-lg" />
+                </div>
+                <div className="space-y-2 text-left">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <Input id="signup-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} className="rounded-lg px-4 py-3 text-lg" />
+                </div>
+                <Button type="submit" className="w-full text-lg font-brand-heading rounded-full h-14 mt-2 shadow-lg" disabled={loading}>
+                  {loading ? "Creating account..." : "Create Account"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
         </Card>
       </div>
     </div>

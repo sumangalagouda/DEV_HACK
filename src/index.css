@@ -2,116 +2,88 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/*
+New Modern Tech Dashboard Theme
+- Brand: Techy purple and teal, vibrant accents, soft yet bold
+- Font: Poppins for headings, Inter for body
 */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 47% 11%;
+    --background: 252 67% 99%;
+    --foreground: 240 24% 16%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 47% 11%;
+    --card-foreground: 240 24% 16%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 47% 11%;
+    --popover-foreground: 240 24% 16%;
 
-    --primary: 24 95% 53%;
+    --primary: 262 83% 61%; /* vibrant purple */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 217 91% 60%;
+    --secondary: 167 72% 48%; /* teal */
     --secondary-foreground: 0 0% 100%;
 
-    --muted: 210 40% 96%;
-    --muted-foreground: 215 16% 47%;
+    --muted: 252 20% 92%;
+    --muted-foreground: 240 5% 38%;
 
-    --accent: 43 96% 56%;
-    --accent-foreground: 222.2 47% 11%;
+    --accent: 46 100% 61%; /* yellow/orange */
+    --accent-foreground: 240 24% 16%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-
-    --success: 142 71% 45%;
+    --success: 158 64% 52%; /* green */
     --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
+    --warning: 33 100% 59%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 214 32% 91%;
-    --input: 214 32% 91%;
-    --ring: 24 95% 53%;
+    --border: 252 20% 85%;
+    --input: 252 20% 85%;
+    --ring: 262 83% 61%;
 
-    --radius: 0.75rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --radius: 1.2rem;
+    /* Font stack for brand */
+    --font-heading: 'Poppins', 'Inter', system-ui, sans-serif;
+    --font-body: 'Inter', 'Roboto', system-ui, sans-serif;
   }
-
   .dark {
-    --background: 222.2 47% 11%;
-    --foreground: 210 40% 98%;
-
-    --card: 217 33% 17%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 217 33% 17%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 24 95% 53%;
-    --primary-foreground: 0 0% 100%;
-
-    --secondary: 217 91% 60%;
-    --secondary-foreground: 0 0% 100%;
-
-    --muted: 217 33% 17%;
-    --muted-foreground: 215 20% 65%;
-
-    --accent: 43 96% 56%;
-    --accent-foreground: 222.2 47% 11%;
-
-    --destructive: 0 63% 31%;
-    --destructive-foreground: 210 40% 98%;
-
-    --success: 142 71% 45%;
-    --success-foreground: 0 0% 100%;
-
-    --warning: 38 92% 50%;
-    --warning-foreground: 0 0% 100%;
-
-    --border: 217 33% 17%;
-    --input: 217 33% 17%;
-    --ring: 24 95% 53%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --background: 250 12% 9%;
+    --foreground: 252 20% 98%;
+    --card: 250 23% 14%;
+    --card-foreground: 252 20% 98%;
+    --popover: 250 23% 12%;
+    --popover-foreground: 252 30% 99%;
+    --primary: 262 91% 75%;  /* light violet */
+    --primary-foreground: 250 10% 12%;
+    --secondary: 167 77% 56%;
+    --secondary-foreground: 250 10% 12%;
+    --accent: 46 100% 61%;
+    --accent-foreground: 250 10% 12%;
+    --muted: 248 16% 13%;
+    --muted-foreground: 252 20% 80%;
+    --border: 252 15% 22%;
+    --input: 252 15% 22%;
+    --ring: 262 83% 61%;
+    --success: 158 64% 52%;
+    --warning: 33 100% 59%;
+    --destructive: 6 77% 56%;
   }
 }
 
 @layer base {
   * {
     @apply border-border;
+    font-family: var(--font-body);
   }
-
+  h1, h2, h3, h4, h5, h6, .font-brand-heading {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
+  }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+  }
+  .card {
+    @apply rounded-2xl shadow-xl bg-card;
   }
 }
