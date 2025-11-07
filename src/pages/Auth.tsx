@@ -7,20 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-
-const BrandLogo = () => (
-  <svg width="56" height="56" viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg" className="mx-auto mb-3">
-    <circle cx="27" cy="27" r="26" fill="url(#paint0_radial)" stroke="hsl(var(--primary))" strokeWidth="2" />
-    <path d="M27 39c5-4 9-7 9-13a9 9 0 10-18 0c0 6 4 9 9 13Z" fill="hsl(var(--primary))" stroke="hsl(var(--secondary))" strokeWidth="1.8"/>
-    <circle cx="27" cy="26" r="4.2" fill="hsl(var(--secondary))" stroke="white" strokeWidth="1.5"/>
-    <defs>
-      <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientTransform="rotate(65 5 40) scale(31 38)" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#f5dfff" />
-        <stop offset="1" stopColor="#ebe6ff" />
-      </radialGradient>
-    </defs>
-  </svg>
-);
+import BrandLogo from "@/components/BrandLogo";
 
 const Auth = () => {
   const [email, setEmail] = useState("");
@@ -99,8 +86,8 @@ const Auth = () => {
       <div className="w-full max-w-lg z-10">
         <Card className="bg-white/75 backdrop-blur-lg border-0 shadow-2xl rounded-3xl px-6 py-12">
           <div className="text-center mb-10">
-            <BrandLogo />
-            <h1 className="font-brand-heading text-4xl font-bold text-primary mb-1">VigilantAI</h1>
+            <BrandLogo size={56} className="mx-auto mb-3" />
+            <h1 className="font-brand-heading text-4xl font-bold text-primary mb-1">Consafe</h1>
             <div className="text-base text-muted-foreground pb-1">Welcome back! Please sign in or create your site account.</div>
           </div>
           <Tabs defaultValue="signin" className="w-full">

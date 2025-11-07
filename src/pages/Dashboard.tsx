@@ -9,20 +9,7 @@ import AlertCard from "@/components/AlertCard";
 import SafetyScoreChart from "@/components/SafetyScoreChart";
 import LiveDetectionStatus from "@/components/LiveDetectionStatus";
 import { useToast } from "@/hooks/use-toast";
-
-const BrandLogo = () => (
-  <svg width="40" height="40" viewBox="0 0 54 54" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <circle cx="27" cy="27" r="25" fill="url(#paint0_radial)" stroke="hsl(var(--primary))" strokeWidth="2" />
-    <path d="M27 39c5-4 9-7 9-13a9 9 0 10-18 0c0 6 4 9 9 13Z" fill="hsl(var(--primary))" stroke="hsl(var(--secondary))" strokeWidth="1.8"/>
-    <circle cx="27" cy="26" r="4.2" fill="hsl(var(--secondary))" stroke="white" strokeWidth="1.5"/>
-    <defs>
-      <radialGradient id="paint0_radial" cx="0" cy="0" r="1" gradientTransform="rotate(65 5 40) scale(31 38)" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#f5dfff" />
-        <stop offset="1" stopColor="#ebe6ff" />
-      </radialGradient>
-    </defs>
-  </svg>
-);
+import BrandLogo from "@/components/BrandLogo";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -172,7 +159,7 @@ const Dashboard = () => {
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <BrandLogo />
-            <span className="font-brand-heading font-bold text-2xl text-primary tracking-tight">VigilantAI</span>
+            <span className="font-brand-heading font-bold text-2xl text-primary tracking-tight">Consafe</span>
           </div>
           <Button variant="outline" size="lg" className="rounded-full font-brand-heading px-7" onClick={handleSignOut}>
             <LogOut className="h-5 w-5 mr-2" /> Sign Out
