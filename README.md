@@ -143,7 +143,3 @@ This project transforms ordinary CCTV footage into an intelligent safety monitor
 
 Built with ❤️ by [CODE4CHANGE]
 
-
----
-
-Would you like me to make a **GitHub-optimized version** (with badges, emojis, and screenshot placeholders) s
