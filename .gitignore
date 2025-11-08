@@ -7,6 +7,10 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+venv/
+__pycache__/
+*.pyc
+.DS_Store
 node_modules
 *.md
 .env

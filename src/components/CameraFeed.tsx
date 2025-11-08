@@ -16,6 +16,12 @@ const CameraFeed = ({ onDetectionComplete }: CameraFeedProps) => {
   const [analyzing, setAnalyzing] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const [isCameraOpen, setIsCameraOpen] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [devices, setDevices] = useState<MediaDeviceInfo[]>([]);
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
   const { toast } = useToast();
 
   const [userProfile, setUserProfile] = useState<any>(null);
@@ -32,6 +38,39 @@ const CameraFeed = ({ onDetectionComplete }: CameraFeedProps) => {
         setUserProfile(profile);
       }
     });
+  }, []);
+
+  // Cleanup camera stream on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((t) => t.stop());
+        streamRef.current = null;
+      }
+    };
+  }, []);
+
+  // Enumerate media devices
+  const refreshDevices = async () => {
+    try {
+      const list = await navigator.mediaDevices.enumerateDevices();
+      const videoInputs = list.filter((d) => d.kind === 'videoinput');
+      setDevices(videoInputs);
+      if (videoInputs.length > 0 && !selectedDeviceId) {
+        setSelectedDeviceId(videoInputs[0].deviceId);
+      }
+    } catch (e) {
+      console.warn('Could not enumerate devices:', e);
+    }
+  };
+
+  useEffect(() => {
+    refreshDevices();
+    // Update device list when permissions change
+    navigator.mediaDevices?.addEventListener?.('devicechange', refreshDevices);
+    return () => {
+      navigator.mediaDevices?.removeEventListener?.('devicechange', refreshDevices);
+    };
   }, []);
 
   const { data: cameras, error: camerasError, isLoading: camerasLoading } = useQuery({
@@ -77,155 +116,165 @@ const CameraFeed = ({ onDetectionComplete }: CameraFeedProps) => {
   };
 
   const handleAnalyze = async () => {
+    // Delegate to analyzeImage which accepts a data URL
     if (!previewImage) {
-      toast({
-        title: "No image selected",
-        description: "Please upload an image first",
-        variant: "destructive",
-      });
+      toast({ title: "No image selected", description: "Please upload or capture a frame first", variant: "destructive" });
       return;
     }
+    await analyzeImage(previewImage);
+  };
 
+  // Reusable function to analyze an image dataURL (used for uploads and live capture)
+  const analyzeImage = async (imageDataUrl: string) => {
+    if (!imageDataUrl) return;
     if (!selectedCamera) {
-      toast({
-        title: "No camera selected",
-        description: "Please select a camera location",
-        variant: "destructive",
-      });
-      return;
+      // We don't require a selectedCamera for analysis, but warn user if not set
+      toast({ title: "No camera selected", description: "Results will be recorded without a camera association.", variant: "default" });
     }
 
     setAnalyzing(true);
-
     try {
       console.log('Invoking detect-ppe function...');
       const { data, error } = await supabase.functions.invoke('detect-ppe', {
         body: {
-          imageBase64: previewImage,
-          cameraId: selectedCamera,
+          imageBase64: imageDataUrl,
+          cameraId: selectedCamera || null,
         },
       });
 
-      // Log everything for debugging
       console.log('Edge Function response - error:', error);
       console.log('Edge Function response - data:', data);
 
-      // Check if there's an error object
-      if (error) {
-        console.error('Edge Function error object:', error);
-        const errorMsg = error.message || 'Failed to analyze image';
-        
-        // If error says non-2xx, the actual error might be in data
-        if (errorMsg.includes('non-2xx') && data) {
-          // Try to get error from response body
-          if (data.error) {
-            let detailedError = data.error;
-            if (data.details) detailedError += ` - ${data.details}`;
-            if (data.hint) detailedError += ` (Hint: ${data.hint})`;
-            if (data.code) detailedError += ` [Code: ${data.code}]`;
-            throw new Error(detailedError);
-          }
-        }
-        
-        throw new Error(errorMsg);
-      }
+      if (error) throw new Error(error.message || 'Edge function error');
+      if (!data) throw new Error('No response from Edge Function');
 
-      // Check if function returned an error in the response data
-      if (data && !data.success && data.error) {
-        let errorMsg = data.error;
-        if (data.details) errorMsg += ` - ${data.details}`;
-        if (data.hint) errorMsg += ` (Hint: ${data.hint})`;
-        if (data.code) errorMsg += ` [Code: ${data.code}]`;
-        if (data.stack) {
-          console.error('Error stack trace:', data.stack);
-        }
-        throw new Error(errorMsg);
-      }
-      
-      // If we got here but no data, something went wrong
-      if (!data) {
-        throw new Error('No response from Edge Function. Check if function is deployed and accessible.');
-      }
-
-      // Check if violations were found
       if (data?.hasViolations && data?.detection) {
-        // Play voice alert for violations
         const violations = data.detection.violation_type || 'Safety violation detected';
-        const utterance = new SpeechSynthesisUtterance(
-          `Alert! Safety violation detected: ${violations}. Please address immediately.`
-        );
+        const utterance = new SpeechSynthesisUtterance(`Alert! Safety violation detected: ${violations}. Please address immediately.`);
         utterance.rate = 0.9;
-        window.speechSynthesis.speak(utterance);
+        try { window.speechSynthesis.speak(utterance); } catch (e) { console.warn('Speech failed', e); }
 
-        toast({
-          title: "Violation Detected!",
-          description: violations,
-          variant: "destructive",
-        });
+        toast({ title: 'Violation Detected!', description: violations, variant: 'destructive' });
       } else {
-        // No violations found or analysis completed
-        const message = data?.message || "Image analysis completed. No violations detected.";
-        toast({
-          title: data?.hasViolations ? "Analysis Complete" : "All Clear!",
-          description: message,
-          className: data?.hasViolations ? "" : "bg-success text-success-foreground",
-        });
+        const message = data?.message || 'Image analysis completed. No violations detected.';
+        toast({ title: data?.hasViolations ? 'Analysis Complete' : 'All Clear!', description: message, className: data?.hasViolations ? '' : 'bg-success text-success-foreground' });
       }
 
       onDetectionComplete();
-      setPreviewImage(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    } catch (error: any) {
-      console.error('Detection error:', error);
-      console.error('Full error object:', JSON.stringify(error, null, 2));
-      
-      // Try to extract error from response if available
-      let errorMessage = error.message || "Failed to analyze image";
-      let errorDetails = '';
-      
-      // If error has a response body, try to parse it
-      if (error.context?.body) {
-        try {
-          const errorBody = typeof error.context.body === 'string' 
-            ? JSON.parse(error.context.body) 
-            : error.context.body;
-          if (errorBody.error) {
-            errorMessage = errorBody.error;
-            errorDetails = errorBody.details || '';
-            if (errorBody.code) {
-              errorMessage += ` [Code: ${errorBody.code}]`;
-            }
-          }
-        } catch (e) {
-          console.log('Could not parse error body');
-        }
-      }
-      
-      // Provide helpful error messages
-      let helpfulMessage = errorMessage;
-      if (errorDetails) {
-        helpfulMessage += ` - ${errorDetails}`;
-      }
-      
-      if (errorMessage.includes('Function not found') || errorMessage.includes('404')) {
-        helpfulMessage = "Edge Function not deployed. Please deploy 'detect-ppe' function in Supabase.";
-      } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
-        helpfulMessage = "Network error. Check your internet connection and Supabase project status.";
-      } else if (errorMessage.includes('row-level security') || errorMessage.includes('RLS')) {
-        helpfulMessage = "Database permission error. Disable RLS or set SUPABASE_SERVICE_ROLE_KEY in Edge Function secrets.";
-      }
-      
-      toast({
-        title: "Analysis failed",
-        description: helpfulMessage,
-        variant: "destructive",
-        duration: 10000, // Show for 10 seconds so user can read it
-      });
+    } catch (err: any) {
+      console.error('Analysis failed', err);
+      toast({ title: 'Analysis failed', description: err.message || String(err), variant: 'destructive', duration: 10000 });
     } finally {
       setAnalyzing(false);
     }
+  };
+
+  const openCamera = async (deviceId?: string | null) => {
+    try {
+      const constraints: MediaStreamConstraints = { video: deviceId ? { deviceId: { exact: deviceId } } : { deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined } };
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      streamRef.current = stream;
+      if (videoRef.current) {
+        try {
+          videoRef.current.srcObject = stream;
+          // Some browsers require play() to be called explicitly even after setting srcObject
+          // Play after metadata is loaded to avoid blank/video not starting in some environments
+          videoRef.current.onloadedmetadata = () => {
+            try {
+              videoRef.current?.play();
+            } catch (e) {
+              console.warn('Video play() failed:', e);
+            }
+          };
+          // Attempt to play immediately as well (user gesture should allow this)
+          try {
+            await videoRef.current.play();
+          } catch (e) {
+            // If immediate play fails, onloadedmetadata handler should start playback
+            console.warn('Immediate video play() failed, will wait for loadedmetadata:', e);
+          }
+        } catch (e) {
+          console.error('Failed to attach stream to video element:', e);
+        }
+      }
+      setIsCameraOpen(true);
+    } catch (e: any) {
+      console.error('Could not open camera:', e);
+      // Map common getUserMedia error names to helpful messages
+      let userMessage = 'Could not access camera. Check browser and OS camera permissions.';
+      if (e && e.name) {
+        switch (e.name) {
+          case 'NotAllowedError':
+          case 'PermissionDeniedError':
+            userMessage = 'Camera permission denied. Allow camera access in the browser prompt or site settings.';
+            break;
+          case 'NotFoundError':
+          case 'DevicesNotFoundError':
+            userMessage = 'No camera found. Make sure a camera is connected and not being used by another application.';
+            break;
+          case 'NotReadableError':
+          case 'TrackStartError':
+            userMessage = 'Camera already in use by another application or hardware issue. Close other apps and try again.';
+            break;
+          case 'OverconstrainedError':
+            userMessage = 'No camera matches the requested constraints.';
+            break;
+          case 'SecurityError':
+            userMessage = 'getUserMedia() is only allowed in secure contexts (HTTPS or localhost). Serve the app over HTTPS or use localhost.';
+            break;
+        }
+      }
+      // If overconstrained, try a fallback without deviceId (use default camera)
+      if (e && (e.name === 'OverconstrainedError' || e.name === 'ConstraintNotSatisfiedError')) {
+        console.warn('OverconstrainedError: retrying with default camera constraints');
+        try {
+          const fallbackStream = await navigator.mediaDevices.getUserMedia({ video: true });
+          streamRef.current = fallbackStream;
+          if (videoRef.current) {
+            videoRef.current.srcObject = fallbackStream;
+            try {
+              await videoRef.current.play();
+            } catch (err) {
+              console.warn('Fallback play() failed:', err);
+            }
+          }
+          setIsCameraOpen(true);
+          setCameraError(null);
+          // Refresh device list since permission may now be granted
+          refreshDevices();
+          return;
+        } catch (fallbackErr) {
+          console.error('Fallback getUserMedia failed:', fallbackErr);
+          userMessage = 'No camera matches the requested constraints and fallback failed.';
+        }
+      }
+
+      setCameraError(`${userMessage} ${e?.message || ''}`.trim());
+      toast({ title: 'Camera error', description: userMessage, variant: 'destructive' });
+    }
+  };
+
+  const closeCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((t) => t.stop());
+      streamRef.current = null;
+    }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setIsCameraOpen(false);
+  };
+
+  const captureFromCamera = () => {
+    if (!videoRef.current) return;
+    const video = videoRef.current;
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+    // Keep the camera open so user can capture multiple frames; set preview so they can inspect
+    setPreviewImage(dataUrl);
   };
 
   return (
@@ -306,9 +355,55 @@ const CameraFeed = ({ onDetectionComplete }: CameraFeedProps) => {
               <p className="text-sm text-muted-foreground mb-4">
                 Upload an image from CCTV or site inspection
               </p>
-              <Button onClick={() => fileInputRef.current?.click()}>
-                Select Image
-              </Button>
+              <div className="flex items-center justify-center gap-2">
+                <Button onClick={() => fileInputRef.current?.click()}>
+                  Select Image
+                </Button>
+                <div className="flex items-center gap-2">
+                  {devices && devices.length > 0 && (
+                    <select
+                      value={selectedDeviceId || ''}
+                      onChange={(e) => setSelectedDeviceId(e.target.value || null)}
+                      className="border rounded px-2 py-1 text-sm"
+                      aria-label="Select camera device"
+                    >
+                      <option value="">Default camera</option>
+                      {devices.map((d) => (
+                        <option key={d.deviceId} value={d.deviceId}>{d.label || d.deviceId}</option>
+                      ))}
+                    </select>
+                  )}
+                  <Button onClick={() => openCamera(selectedDeviceId)} variant="outline">
+                    Open Webcam
+                  </Button>
+                </div>
+              </div>
+
+              {isCameraOpen && (
+                <div className="mt-4 space-y-2">
+                  {/* muted helps autoplay in some browsers */}
+                  <video ref={videoRef} autoPlay playsInline muted className="w-full h-48 object-cover rounded-lg border" />
+                  <div className="flex gap-2">
+                    <Button onClick={captureFromCamera} className="flex-1">
+                      Capture
+                    </Button>
+                    <Button onClick={closeCamera} variant="destructive" className="flex-1">
+                      Close Camera
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Show camera error if present and provide a retry action */}
+              {cameraError && (
+                <div className="mt-4 text-sm text-destructive space-y-2">
+                  <div>{cameraError}</div>
+                  <div className="flex gap-2">
+                    <Button onClick={openCamera} variant="outline">Retry Camera</Button>
+                    <Button onClick={() => { navigator.mediaDevices.getUserMedia({ video: true }).then(s => { s.getTracks().forEach(t => t.stop()); }).catch(()=>{}); }} variant="ghost">Reset Permission</Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

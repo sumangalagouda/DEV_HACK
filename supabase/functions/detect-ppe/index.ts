@@ -208,10 +208,34 @@ serve(async (req) => {
       // Continue with placeholder URL
     }
 
-    // Save to database (always save, even if no violations)
-    const hasViolations = analysisResult.violations && analysisResult.violations.length > 0;
-    const violationText = hasViolations 
-      ? analysisResult.violations.join(', ')
+    // Decide whether the analysis actually indicates a real violation.
+    // Some fallback/placeholder analysis results (e.g. "Image uploaded - Manual review recommended")
+    // are not real violations and should not trigger alarms or voice alerts in the UI.
+    const rawViolations = Array.isArray(analysisResult.violations) ? analysisResult.violations : [];
+
+    // Patterns that indicate placeholder / manual-review messages rather than true violations.
+    const PLACEHOLDER_PATTERNS = [
+      /manual review/i,
+      /image uploaded/i,
+      /manual inspection/i,
+      /no violations detected/i,
+      /all clear/i,
+      /all ppe requirements met/i,
+    ];
+
+    const hasMeaningfulViolation = rawViolations.some((v: string) => {
+      if (!v || typeof v !== 'string') return false;
+      // If the violation text matches any placeholder pattern, treat it as non-violation
+      for (const p of PLACEHOLDER_PATTERNS) {
+        if (p.test(v)) return false;
+      }
+      // Otherwise consider it meaningful
+      return true;
+    });
+
+    const hasViolations = hasMeaningfulViolation;
+    const violationText = hasViolations
+      ? rawViolations.join(', ')
       : 'No violations detected - All Clear';
 
     // Ensure camera exists or use null

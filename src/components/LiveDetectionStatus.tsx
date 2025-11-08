@@ -45,15 +45,50 @@ const LiveDetectionStatus = ({ cameraId }: LiveDetectionStatusProps) => {
           const detection = payload.new as any;
           setLatestDetection(detection);
           setIsActive(true);
-          
-          // Check if it's a violation (exclude "All Clear" messages)
-          const isViolation = detection.violation_type && 
-                             detection.violation_type !== '' &&
-                             !detection.violation_type.includes('All Clear') &&
-                             !detection.violation_type.includes('All PPE Requirements Met');
-          
+
+          // Determine violation status robustly:
+          // Prefer explicit boolean `has_violations` if available from the backend.
+          // Otherwise, fall back to case-insensitive checks on the `violation_type` text
+          // and treat common "all clear" / manual-review phrases as non-violations.
+          const negPatterns = [
+            'all clear',
+            'all ppe requirements met',
+            'all ppe',
+            'no violations',
+            'no violation',
+            'manual review',
+            'manual inspection',
+            'all safety protocols followed'
+          ];
+
+          let isViolation: boolean;
+          if (typeof detection.has_violations === 'boolean') {
+            isViolation = detection.has_violations;
+          } else {
+            const vt = (detection.violation_type || '').toString().toLowerCase();
+            if (!vt || vt.trim() === '') {
+              isViolation = false;
+            } else {
+              const isNegative = negPatterns.some((p) => vt.includes(p));
+              isViolation = !isNegative;
+            }
+          }
+
+          console.debug('Live detection received:', { detection, isViolation });
+
           if (isViolation) {
             setStatus('violation');
+            // Speak the violation aloud for immediate attention
+            try {
+              const speakText = `Alert! Safety violation detected: ${detection.violation_type || 'Unknown violation'}. Please respond.`;
+              if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(speakText);
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+              }
+            } catch (e) {
+              console.error('Speech synthesis failed:', e);
+            }
           } else {
             setStatus('monitoring');
           }
@@ -81,10 +116,29 @@ const LiveDetectionStatus = ({ cameraId }: LiveDetectionStatusProps) => {
       if (!error && data) {
         setLatestDetection(data);
         setIsActive(true);
-        const isViolation = data.violation_type && 
-                           data.violation_type !== '' &&
-                           !data.violation_type.includes('All Clear') &&
-                           !data.violation_type.includes('All PPE Requirements Met');
+        const negPatterns = [
+          'all clear',
+          'all ppe requirements met',
+          'all ppe',
+          'no violations',
+          'no violation',
+          'manual review',
+          'manual inspection',
+          'all safety protocols followed'
+        ];
+
+        let isViolation: boolean;
+        if (typeof data.has_violations === 'boolean') {
+          isViolation = data.has_violations;
+        } else {
+          const vt = (data.violation_type || '').toString().toLowerCase();
+          if (!vt || vt.trim() === '') {
+            isViolation = false;
+          } else {
+            const isNegative = negPatterns.some((p) => vt.includes(p));
+            isViolation = !isNegative;
+          }
+        }
         if (isViolation) {
           setStatus('violation');
         } else {

@@ -24,7 +24,7 @@ except ImportError:
 # ===== CONFIGURATION =====
 # Camera Configuration
 RTSP_URL = '0'  # Use '0' for webcam, or 'rtsp://user:pass@ip:port/stream' for CCTV
-YOLO_MODEL_PATH = r'C:\Users\dsvai\Downloads\best.pt'  # Your YOLO model path
+YOLO_MODEL_PATH = r'C:\Users\Sumangala\Desktop\d2\DEV_HACK\python-worker\best.pt'  # MODEL_PATH = r""Your YOLO model path
 
 # Supabase Configuration
 SUPABASE_FN_URL = 'https://iscxriwdxxvzhcoguvyk.supabase.co/functions/v1/detect-ppe'  # UPDATE THIS!
@@ -46,7 +46,8 @@ TWILIO_NUMBER = "YOUR_TWILIO_PHONE_NUMBER"  # UPDATE THIS!
 
 # Detection Settings
 DETECTION_INTERVAL = 1  # Analyze 1 frame per second (adjust as needed)
-MIN_CONFIDENCE = 0.5  # Minimum confidence threshold for detections
+# Increase default min confidence slightly to reduce low-confidence false positives
+MIN_CONFIDENCE = 0.6  # Minimum confidence threshold for detections
 VIOLATION_CLASSES = ['NO-Mask', 'NO-Hardhat', 'NO-Safety Vest', 'Person', 'Safety Vest']  # Your model classes
 
 # ===== FUNCTIONS =====
@@ -363,16 +364,31 @@ def analyze_detection(results, model):
         if detected_classes:
             detected_str = ', '.join([f"{k}: {v:.1%}" for k, v in detected_classes.items()])
         
-        # Check for violations based on your model's class names
-        if 'NO-Hardhat' in detected_classes:
+        # Resolve contradictory detections (e.g., both 'Hardhat' and 'NO-Hardhat') by preferring
+        # the label with higher confidence. This reduces false positives where both are present.
+        def is_meaningful_negative(neg_label, pos_label=None):
+            """Return True if the negative label should be treated as a violation.
+            If a corresponding positive label exists with higher confidence, treat as non-violation."""
+            neg_conf = detected_classes.get(neg_label)
+            if neg_conf is None:
+                return False
+            if pos_label and pos_label in detected_classes:
+                pos_conf = detected_classes[pos_label]
+                # If positive confidence is greater or equal, ignore the negative label
+                if pos_conf >= neg_conf:
+                    print(f"⚠️ Conflicting labels: {pos_label} ({pos_conf:.1%}) vs {neg_label} ({neg_conf:.1%}) - preferring positive")
+                    return False
+            return True
+
+        if is_meaningful_negative('NO-Hardhat', pos_label='Hardhat'):
             violations.append(f'Missing Hard Hat (Confidence: {detected_classes["NO-Hardhat"]:.1%})')
             has_violation = True
-        
-        if 'NO-Safety Vest' in detected_classes:
+
+        if is_meaningful_negative('NO-Safety Vest', pos_label='Safety Vest'):
             violations.append(f'Missing Safety Vest (Confidence: {detected_classes["NO-Safety Vest"]:.1%})')
             has_violation = True
-        
-        if 'NO-Mask' in detected_classes:
+
+        if is_meaningful_negative('NO-Mask', pos_label='Mask'):
             violations.append(f'Missing Mask (Confidence: {detected_classes["NO-Mask"]:.1%})')
             has_violation = True
         
